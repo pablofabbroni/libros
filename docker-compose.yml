@@ -11,11 +11,12 @@ services:
       - ./app/static/covers:/app/static/covers
       # Mount the data folder for SQLite database persistence
       - ./app/data:/app/data
-      # Mount the PDF directory as read-only from the parent path
-      - ./../PDF:/app/books:ro
+      # Mount the PDF directory as read-only from the absolute path in VPS
+      - /root/PDF:/app/books:ro
     environment:
       - BOOKS_DIR=/app/books
       - DB_PATH=/app/data/stats.db
       - DOWNLOAD_LIMIT_DAILY=10
       - ADMIN_PASSWORD=RobotEdge2026
     restart: always
+
