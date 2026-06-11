@@ -27,6 +27,12 @@ const modalTitle = document.getElementById("modal-title");
 const modalMessage = document.getElementById("modal-message");
 const btnCloseModal = document.getElementById("btn-close-modal");
 
+// Preview Modal Elements
+const previewModal = document.getElementById("preview-modal");
+const previewModalTitle = document.getElementById("preview-modal-title");
+const pdfIframe = document.getElementById("pdf-iframe");
+const btnClosePreview = document.getElementById("btn-close-preview");
+
 // Init Page
 document.addEventListener("DOMContentLoaded", () => {
     // 1. Log visit metrics
@@ -44,6 +50,7 @@ document.addEventListener("DOMContentLoaded", () => {
     btnClearSelection.addEventListener("click", clearSelection);
     btnDownloadSelection.addEventListener("click", triggerDownload);
     btnCloseModal.addEventListener("click", hideModal);
+    btnClosePreview.addEventListener("click", hidePreviewModal);
 
     // Setup Filter Tabs
     const tabs = document.querySelectorAll(".tab-btn");
@@ -100,11 +107,16 @@ function renderBooks(books) {
             </div>
             <div class="book-thumbnail-wrapper">
                 <img src="${book.cover_url}" class="book-thumbnail" alt="${book.title}" loading="lazy">
+                <div class="book-cover-overlay">
+                    <button class="btn-read-online" data-hash="${book.hash}">📖 Leer Online</button>
+                </div>
             </div>
             <h3 class="book-title-container">
                 <div class="book-card-title" title="${book.title}">${book.title}</div>
             </h3>
             <p class="book-card-author" title="${book.author}">${book.author}</p>
+            
+            <button class="card-btn-read-online" data-hash="${book.hash}">📖 Leer Online</button>
             
             <!-- Panel de Recomendaciones -->
             <div class="book-voting-panel">
@@ -124,8 +136,8 @@ function renderBooks(books) {
         
         // Add card select listener (clicking cover, details, or checkbox selects the card)
         card.addEventListener("click", (e) => {
-            // Avoid triggering select if user clicked a vote button
-            if (e.target.closest(".book-voting-panel") || e.target.closest(".vote-btn")) {
+            // Avoid triggering select if user clicked a vote button or the hover overlay buttons or read online buttons
+            if (e.target.closest(".book-voting-panel") || e.target.closest(".vote-btn") || e.target.closest(".book-cover-overlay") || e.target.closest(".btn-read-online") || e.target.closest(".card-btn-read-online")) {
                 return;
             }
             
@@ -137,6 +149,23 @@ function renderBooks(books) {
             
             toggleBookSelection(book.hash);
         });
+        
+        // Setup read online button listeners
+        const btnRead = card.querySelector(".btn-read-online");
+        if (btnRead) {
+            btnRead.addEventListener("click", (e) => {
+                e.stopPropagation();
+                showPreviewModal(book.hash, book.title);
+            });
+        }
+
+        const btnReadCard = card.querySelector(".card-btn-read-online");
+        if (btnReadCard) {
+            btnReadCard.addEventListener("click", (e) => {
+                e.stopPropagation();
+                showPreviewModal(book.hash, book.title);
+            });
+        }
         
         // Setup vote event listeners
         const btnUp = card.querySelector(".vote-up");
@@ -211,6 +240,18 @@ function updateSelectionBarUI() {
 }
 
 // Clear all selected checkboxes
+// Preview modal management
+function showPreviewModal(hash, title) {
+    previewModalTitle.textContent = title;
+    pdfIframe.src = `/api/books/${hash}/view`;
+    previewModal.classList.add("active");
+}
+
+function hidePreviewModal() {
+    previewModal.classList.remove("active");
+    pdfIframe.src = "";
+}
+
 function clearSelection() {
     selectedHashes.clear();
     updateCardsUI();

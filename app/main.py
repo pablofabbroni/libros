@@ -239,6 +239,21 @@ async def download_books(
             logger.error(f"Error compiling download ZIP: {e}")
             raise HTTPException(status_code=500, detail="Error al generar el archivo comprimido")
 
+@app.get("/api/books/{hash}/view")
+async def view_book_pdf(hash: str):
+    matched_book = next((b for b in books_cache if get_file_md5(b['filename']) == hash), None)
+    if not matched_book:
+        raise HTTPException(status_code=404, detail="Libro no encontrado")
+        
+    file_path = os.path.join(BOOKS_DIR, matched_book['filename'])
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="El archivo no está en el servidor")
+        
+    return FileResponse(
+        path=file_path,
+        media_type="application/pdf"
+    )
+
 @app.post("/api/stats/visit")
 async def post_visit(request: Request):
     ip = get_client_ip(request)
