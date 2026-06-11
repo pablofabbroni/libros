@@ -11,7 +11,8 @@ import hashlib
 import logging
 from typing import List
 
-from database import init_db, log_visit, log_download, check_download_limit, get_stats
+import uuid
+from database import init_db, log_visit, log_download, check_download_limits, get_stats, cast_vote, get_all_votes, get_book_download_counts
 from books_manager import scan_books_folder, get_file_md5, BOOKS_DIR
 
 # Logging configuration
@@ -76,31 +77,61 @@ def get_client_ip(request: Request) -> str:
 
 # Endpoints
 @app.get("/api/books")
-async def get_books(refresh: bool = False):
+async def get_books(request: Request, refresh: bool = False):
     global books_cache
     if refresh:
         logger.info("Re-scanning books folder...")
         books_cache = scan_books_folder()
     
-    # Map cache items to expose hash, title, author, cover_url, and file size in MB
+    # Get recommendation votes and download counts for the current IP
+    ip = get_client_ip(request)
+    votes = get_all_votes(ip)
+    download_counts = get_book_download_counts()
+    
+    # Map cache items to expose hash, title, author, cover_url, size, votes, and downloads
     response_books = []
     for b in books_cache:
+        book_hash = get_file_md5(b['filename'])
+        book_votes = votes.get(book_hash, {'likes': 0, 'dislikes': 0, 'user_vote': 0})
+        book_downloads = download_counts.get(b['title'], 0)
         response_books.append({
-            'hash': get_file_md5(b['filename']),
+            'hash': book_hash,
             'title': b['title'],
             'author': b['author'],
             'cover_url': b['cover_url'],
-            'size_mb': round(b['size_bytes'] / (1024 * 1024), 2)
+            'size_mb': round(b['size_bytes'] / (1024 * 1024), 2),
+            'likes': book_votes['likes'],
+            'dislikes': book_votes['dislikes'],
+            'user_vote': book_votes['user_vote'],
+            'downloads': book_downloads
         })
     return response_books
+
+@app.post("/api/books/{hash}/vote")
+async def vote_book(hash: str, payload: dict, request: Request):
+    vote_type = payload.get("vote_type")
+    if vote_type not in [1, -1, 0]:
+        raise HTTPException(status_code=400, detail="Voto inválido. Debe ser 1, -1 o 0.")
+        
+    ip = get_client_ip(request)
+    cast_vote(ip, hash, vote_type)
+    
+    # Return updated vote stats for this book
+    votes = get_all_votes(ip)
+    book_votes = votes.get(hash, {'likes': 0, 'dislikes': 0, 'user_vote': 0})
+    return {
+        'success': True,
+        'likes': book_votes['likes'],
+        'dislikes': book_votes['dislikes'],
+        'user_vote': book_votes['user_vote']
+    }
 
 @app.get("/api/download/status")
 async def get_download_status(request: Request):
     ip = get_client_ip(request)
-    limit_left = check_download_limit(ip, DOWNLOAD_LIMIT_DAILY)
+    limits = check_download_limits(ip, ind_limit=10, zip_limit=3)
     return {
-        'limit_left': limit_left,
-        'limit_total': DOWNLOAD_LIMIT_DAILY,
+        'limits': limits,
         'ip_address': ip
     }
 
@@ -111,19 +142,11 @@ async def download_books(
     hashes: str = Query(..., description="Comma-separated book hashes to download")
 ):
     ip = get_client_ip(request)
-    limit_left = check_download_limit(ip, DOWNLOAD_LIMIT_DAILY)
     
     # Parse requested hashes
     hash_list = [h.strip() for h in hashes.split(",") if h.strip()]
     if not hash_list:
         raise HTTPException(status_code=400, detail="No se especificaron libros para descargar")
-        
-    # Check rate limit (only for public users, not administrators, but here it applies by default)
-    if limit_left <= 0:
-        raise HTTPException(
-            status_code=429, 
-            detail="Has superado tu límite de 10 descargas diarias de la Comunidad RobotEdge. Inténtalo de nuevo mañana."
-        )
         
     # Match hashes against books in cache
     books_to_download = []
@@ -135,15 +158,23 @@ async def download_books(
     if not books_to_download:
         raise HTTPException(status_code=404, detail="Ninguno de los libros seleccionados fue encontrado")
         
-    # Download single book
+    # Download single book (Individual Mode)
     if len(books_to_download) == 1:
+        # Check individual rate limit
+        limits = check_download_limits(ip, ind_limit=10, zip_limit=3)
+        if limits['individual_left'] <= 0:
+            raise HTTPException(
+                status_code=429, 
+                detail="Has superado tu límite de 10 descargas individuales diarias de la Comunidad RobotEdge. Vuelve mañana."
+            )
+            
         book = books_to_download[0]
         file_path = os.path.join(BOOKS_DIR, book['filename'])
         if not os.path.exists(file_path):
             raise HTTPException(status_code=404, detail=f"El archivo '{book['filename']}' no está en el servidor")
             
         # Log download in SQLite
-        log_download(ip, book['title'], is_zip=False)
+        log_download(ip, book['title'], is_zip=False, zip_id=None)
         
         return FileResponse(
             path=file_path,
@@ -151,8 +182,23 @@ async def download_books(
             media_type="application/pdf"
         )
         
-    # Download multiple books in a ZIP
+    # Download multiple books in a ZIP (ZIP Mode)
     else:
+        # Enforce max 5 books in a ZIP
+        if len(books_to_download) > 5:
+            raise HTTPException(
+                status_code=400,
+                detail="El archivo ZIP excede el límite permitido de 5 libros de la Comunidad RobotEdge."
+            )
+            
+        # Check ZIP rate limit
+        limits = check_download_limits(ip, ind_limit=10, zip_limit=3)
+        if limits['zip_left'] <= 0:
+            raise HTTPException(
+                status_code=429, 
+                detail="Has superado tu límite de 3 descargas ZIP diarias de la Comunidad RobotEdge. Vuelve mañana."
+            )
+            
         # Create temp ZIP file
         temp_zip = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
         temp_zip.close() # Close handle so zipfile can write to it safely
@@ -167,8 +213,12 @@ async def download_books(
                         clean_name = re.sub(r'[/\\?%*:|"<>]', '_', clean_name) # sanitize name
                         zf.write(file_path, clean_name)
                         
-            # Log single bulk download event
-            log_download(ip, f"ZIP Múltiple ({len(books_to_download)} libros)", is_zip=True)
+            # Generate a unique ZIP transaction identifier
+            zip_id = str(uuid.uuid4())
+            
+            # Log each selected book inside the ZIP individually
+            for book in books_to_download:
+                log_download(ip, book['title'], is_zip=True, zip_id=zip_id)
             
             # Setup background task to delete temp zip after download finishes
             def delete_temp_file(path):

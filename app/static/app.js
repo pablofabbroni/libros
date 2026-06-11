@@ -1,12 +1,16 @@
 // State variables
 let booksData = [];
 let selectedHashes = new Set();
-let dailyLimitLeft = 10;
-let dailyLimitTotal = 10;
+let dailyLimitIndLeft = 10;
+let dailyLimitIndTotal = 10;
+let dailyLimitZipLeft = 3;
+let dailyLimitZipTotal = 3;
+let currentSortMode = "default"; // "default", "recommended", "downloaded"
 
 // DOM Elements
 const searchInput = document.getElementById("search-input");
-const limitBadge = document.getElementById("limit-badge");
+const limitBadgeInd = document.getElementById("limit-badge-ind");
+const limitBadgeZip = document.getElementById("limit-badge-zip");
 const booksGrid = document.getElementById("books-grid");
 const loadingIndicator = document.getElementById("loading-indicator");
 const noResults = document.getElementById("no-results");
@@ -40,6 +44,17 @@ document.addEventListener("DOMContentLoaded", () => {
     btnClearSelection.addEventListener("click", clearSelection);
     btnDownloadSelection.addEventListener("click", triggerDownload);
     btnCloseModal.addEventListener("click", hideModal);
+
+    // Setup Filter Tabs
+    const tabs = document.querySelectorAll(".tab-btn");
+    tabs.forEach(tab => {
+        tab.addEventListener("click", () => {
+            tabs.forEach(t => t.classList.remove("active"));
+            tab.classList.add("active");
+            currentSortMode = tab.dataset.sort;
+            filterBooks();
+        });
+    });
 });
 
 // Fetch books index from backend
@@ -53,7 +68,7 @@ async function fetchBooks() {
         loadingIndicator.style.display = "none";
         booksGrid.style.display = "grid";
         
-        renderBooks(booksData);
+        filterBooks(); // Render with sorting applied
     } catch (err) {
         loggerError("No se pudieron cargar los libros. Revisa la conexión.", err);
     }
@@ -90,14 +105,30 @@ function renderBooks(books) {
                 <div class="book-card-title" title="${book.title}">${book.title}</div>
             </h3>
             <p class="book-card-author" title="${book.author}">${book.author}</p>
+            
+            <!-- Panel de Recomendaciones -->
+            <div class="book-voting-panel">
+                <button class="vote-btn vote-up ${book.user_vote === 1 ? 'active' : ''}" title="Recomendar este libro">
+                    👍 <span class="vote-count">${book.likes || 0}</span>
+                </button>
+                <button class="vote-btn vote-down ${book.user_vote === -1 ? 'active' : ''}" title="No recomendar este libro">
+                    👎 <span class="vote-count">${book.dislikes || 0}</span>
+                </button>
+            </div>
+
             <div class="book-card-meta">
                 <span class="book-size">${book.size_mb} MB</span>
-                <span>Comunidad RobotEdge</span>
+                <span class="book-downloads-count">📥 ${book.downloads || 0} desc.</span>
             </div>
         `;
         
         // Add card select listener (clicking cover, details, or checkbox selects the card)
         card.addEventListener("click", (e) => {
+            // Avoid triggering select if user clicked a vote button
+            if (e.target.closest(".book-voting-panel") || e.target.closest(".vote-btn")) {
+                return;
+            }
+            
             // Prevent event double-firing if user clicked checkbox directly
             if (e.target.classList.contains("card-checkbox")) {
                 toggleBookSelection(book.hash);
@@ -107,15 +138,40 @@ function renderBooks(books) {
             toggleBookSelection(book.hash);
         });
         
+        // Setup vote event listeners
+        const btnUp = card.querySelector(".vote-up");
+        const btnDown = card.querySelector(".vote-down");
+        
+        btnUp.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const currentVote = book.user_vote;
+            const newVote = currentVote === 1 ? 0 : 1;
+            castBookVote(book.hash, newVote, e);
+        });
+        
+        btnDown.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const currentVote = book.user_vote;
+            const newVote = currentVote === -1 ? 0 : -1;
+            castBookVote(book.hash, newVote, e);
+        });
+        
         booksGrid.appendChild(card);
     });
 }
 
-// Toggle single book selection
+// Toggle single book selection (locks at max 5)
 function toggleBookSelection(hash) {
     if (selectedHashes.has(hash)) {
         selectedHashes.delete(hash);
     } else {
+        if (selectedHashes.size >= 5) {
+            showModal(
+                "Límite de Selección", 
+                "Solo puedes seleccionar un máximo de 5 libros para descargar agrupados en un archivo ZIP."
+            );
+            return;
+        }
         selectedHashes.add(hash);
     }
     
@@ -133,10 +189,10 @@ function updateCardsUI() {
         
         if (selectedHashes.has(hash)) {
             card.classList.add("selected");
-            checkbox.checked = true;
+            if (checkbox) checkbox.checked = true;
         } else {
             card.classList.remove("selected");
-            checkbox.checked = false;
+            if (checkbox) checkbox.checked = false;
         }
     });
 }
@@ -161,22 +217,68 @@ function clearSelection() {
     updateSelectionBarUI();
 }
 
-// Search & filter matching logic
+// Search & filter matching logic (with active sorting)
 function filterBooks() {
     const query = normalize(searchInput.value);
     
-    if (!query) {
-        renderBooks(booksData);
-        return;
+    let filtered = booksData;
+    if (query) {
+        filtered = booksData.filter(book => {
+            const titleNorm = normalize(book.title);
+            const authorNorm = normalize(book.author);
+            return titleNorm.includes(query) || authorNorm.includes(query);
+        });
     }
     
-    const filtered = booksData.filter(book => {
-        const titleNorm = normalize(book.title);
-        const authorNorm = normalize(book.author);
-        return titleNorm.includes(query) || authorNorm.includes(query);
-    });
+    // Apply sorting
+    if (currentSortMode === "recommended") {
+        filtered = [...filtered].sort((a, b) => {
+            const netA = (a.likes || 0) - (a.dislikes || 0);
+            const netB = (b.likes || 0) - (b.dislikes || 0);
+            if (netB !== netA) return netB - netA; // Descending score
+            return a.title.localeCompare(b.title);  // Secondary alphabetical
+        });
+    } else if (currentSortMode === "downloaded") {
+        filtered = [...filtered].sort((a, b) => {
+            const dlA = a.downloads || 0;
+            const dlB = b.downloads || 0;
+            if (dlB !== dlA) return dlB - dlA; // Descending downloads
+            return a.title.localeCompare(b.title); // Secondary alphabetical
+        });
+    } else {
+        // Default alphabetical
+        filtered = [...filtered].sort((a, b) => a.title.localeCompare(b.title));
+    }
     
     renderBooks(filtered);
+}
+
+// Cast recommendation vote
+async function castBookVote(hash, voteType, event) {
+    try {
+        const response = await fetch(`/api/books/${hash}/vote`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ vote_type: voteType })
+        });
+        
+        if (!response.ok) throw new Error("Error registrando voto");
+        const data = await response.json();
+        
+        // Update local state item
+        const book = booksData.find(b => b.hash === hash);
+        if (book) {
+            book.likes = data.likes;
+            book.dislikes = data.dislikes;
+            book.user_vote = data.user_vote;
+        }
+        
+        // Re-filter and render
+        filterBooks();
+    } catch (err) {
+        console.error("Votación fallida:", err);
+        showModal("Error del Sistema", "No se pudo registrar tu recomendación en este momento.");
+    }
 }
 
 // Fetch download limit status from API
@@ -185,16 +287,29 @@ async function updateDownloadLimit() {
         const response = await fetch("/api/download/status");
         if (response.ok) {
             const data = await response.json();
-            dailyLimitLeft = data.limit_left;
-            dailyLimitTotal = data.limit_total;
+            const limits = data.limits;
+            dailyLimitIndLeft = limits.individual_left;
+            dailyLimitIndTotal = limits.individual_limit;
+            dailyLimitZipLeft = limits.zip_left;
+            dailyLimitZipTotal = limits.zip_limit;
             
-            limitBadge.innerHTML = `⚡ <span>Descargas: <strong>${dailyLimitLeft} / ${dailyLimitTotal}</strong> restantes hoy</span>`;
-            if (dailyLimitLeft <= 2) {
-                limitBadge.style.borderColor = "rgba(226, 176, 66, 0.5)";
-                limitBadge.style.color = "#e2b042";
+            limitBadgeInd.innerHTML = `⚡ <span>Indiv: <strong>${dailyLimitIndLeft} / ${dailyLimitIndTotal}</strong> rest.</span>`;
+            limitBadgeZip.innerHTML = `📦 <span>ZIP: <strong>${dailyLimitZipLeft} / ${dailyLimitZipTotal}</strong> rest.</span>`;
+            
+            if (dailyLimitIndLeft <= 2) {
+                limitBadgeInd.style.borderColor = "rgba(226, 176, 66, 0.4)";
+                limitBadgeInd.style.color = "#e2b042";
             } else {
-                limitBadge.style.borderColor = "rgba(255, 255, 255, 0.08)";
-                limitBadge.style.color = "var(--text-gray)";
+                limitBadgeInd.style.borderColor = "rgba(255, 255, 255, 0.08)";
+                limitBadgeInd.style.color = "var(--text-gray)";
+            }
+            
+            if (dailyLimitZipLeft <= 1) {
+                limitBadgeZip.style.borderColor = "rgba(226, 176, 66, 0.4)";
+                limitBadgeZip.style.color = "#e2b042";
+            } else {
+                limitBadgeZip.style.borderColor = "rgba(255, 255, 255, 0.08)";
+                limitBadgeZip.style.color = "var(--text-gray)";
             }
         }
     } catch (err) {
@@ -205,53 +320,71 @@ async function updateDownloadLimit() {
 // Download triggering logic
 async function triggerDownload() {
     if (selectedHashes.size === 0) return;
+    const count = selectedHashes.size;
     
-    // 1. Verify limit remaining locally first
-    if (dailyLimitLeft <= 0) {
-        showModal(
-            "Descargas Diarias Agotadas", 
-            `Has agotado tus ${dailyLimitTotal} descargas gratuitas diarias permitidas. Por favor, vuelve mañana para continuar descargando libros de la Comunidad RobotEdge.`
-        );
-        return;
+    // 1. Verify limits locally
+    if (count === 1) {
+        if (dailyLimitIndLeft <= 0) {
+            showModal(
+                "Límite Diario Superado", 
+                `Has agotado tus ${dailyLimitIndTotal} descargas individuales diarias permitidas. Por favor, vuelve mañana.`
+            );
+            return;
+        }
+    } else {
+        if (count > 5) {
+            showModal("Límite de Selección", "Puedes descargar hasta un máximo de 5 libros por ZIP.");
+            return;
+        }
+        if (dailyLimitZipLeft <= 0) {
+            showModal(
+                "Límite de ZIP Superado", 
+                `Has agotado tus ${dailyLimitZipTotal} descargas grupales (ZIP) diarias permitidas. Por favor, vuelve mañana.`
+            );
+            return;
+        }
     }
     
     const hashesParam = Array.from(selectedHashes).join(",");
     
-    // 2. Perform limit request pre-flight check
+    // 2. Perform pre-flight API limit check
     try {
         const statusRes = await fetch("/api/download/status");
         if (statusRes.ok) {
             const statusData = await statusRes.json();
-            if (statusData.limit_left <= 0) {
-                showModal(
-                    "Límite diario superado", 
-                    "Tu dirección IP ya ha superado el límite de 10 descargas diarias de la comunidad. Vuelve mañana para seguir descargando."
-                );
-                updateDownloadLimit();
-                return;
+            const limits = statusData.limits;
+            if (count === 1) {
+                if (limits.individual_left <= 0) {
+                    showModal("Límite Diario Superado", "Tu dirección IP ya ha agotado el límite de 10 descargas individuales hoy.");
+                    updateDownloadLimit();
+                    return;
+                }
+            } else {
+                if (limits.zip_left <= 0) {
+                    showModal("Límite de ZIP Superado", "Tu dirección IP ya ha agotado el límite de 3 descargas grupales (ZIP) hoy.");
+                    updateDownloadLimit();
+                    return;
+                }
             }
         }
     } catch (e) {
         console.error("Preflight check failed", e);
     }
     
-    // 3. Initiate actual file download
+    // 3. Initiate download
     const downloadUrl = `/api/download?hashes=${hashesParam}`;
-    
-    // Create an invisible download link and trigger it
     const dlLink = document.createElement("a");
     dlLink.href = downloadUrl;
-    // For single book, set target to download, ZIP already triggers download headers
     dlLink.setAttribute("download", "");
     document.body.appendChild(dlLink);
     dlLink.click();
     document.body.removeChild(dlLink);
     
-    // Clean selection after triggering download
     clearSelection();
     
-    // Give backend half a second to process download log, then update limit badge
+    // Give backend time to log download, then update GUI
     setTimeout(updateDownloadLimit, 800);
+    setTimeout(fetchBooks, 1000); // Re-fetch download counts to update metrics live
 }
 
 // Modal management
@@ -259,6 +392,17 @@ function showModal(title, message) {
     modalTitle.textContent = title;
     modalMessage.textContent = message;
     errorModal.classList.add("active");
+}
+
+// Normalize strings for search
+function normalize(text) {
+    if (!text) return "";
+    return text.toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "") // Remove accents
+        .replace(/[^a-z0-9\s]/g, " ")
+        .trim()
+        .replace(/\s+/g, " ");
 }
 
 function hideModal() {

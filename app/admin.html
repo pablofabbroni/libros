@@ -18,7 +18,7 @@
         
         .admin-grid {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(4, 1fr);
             gap: 24px;
             margin-bottom: 40px;
         }
@@ -278,11 +278,15 @@
         <section class="admin-grid">
             <div class="stat-card">
                 <div class="stat-val" id="kpi-visits">0</div>
-                <div class="stat-lbl">Visitas de Usuarios</div>
+                <div class="stat-lbl">Visitas Únicas</div>
             </div>
             <div class="stat-card">
                 <div class="stat-val" id="kpi-downloads">0</div>
-                <div class="stat-lbl">Descargas Totales</div>
+                <div class="stat-lbl">Descargas (Transac.)</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-val" id="kpi-total-books-downloaded">0</div>
+                <div class="stat-lbl">Libros Descargados</div>
             </div>
             <div class="stat-card">
                 <div class="stat-val" id="kpi-books">0</div>

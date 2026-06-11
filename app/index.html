@@ -38,8 +38,13 @@
             </div>
 
             <div class="sidebar-footer">
-                <div class="limit-info-badge" id="limit-badge">
-                    ⚡ Descargas: 10 / 10 rest.
+                <div class="limits-container">
+                    <div class="limit-info-badge" id="limit-badge-ind">
+                        ⚡ Individual: 10 / 10 rest.
+                    </div>
+                    <div class="limit-info-badge" id="limit-badge-zip">
+                        📦 ZIP: 3 / 3 rest.
+                    </div>
                 </div>
                 <div class="footer-brand">ACCESO LIBRE • COMUNIDAD ROBOTEDGE</div>
                 <div class="footer-admin-link">
@@ -48,13 +53,20 @@
             </div>
         </aside>
 
-        <!-- CONTENIDO PRINCIPAL: Buscador y Grilla de Libros -->
         <main class="main-content">
-            <!-- Barra superior de búsqueda -->
+            <!-- Barra superior de búsqueda y filtros -->
             <header class="content-header">
                 <div class="search-wrapper">
                     <span class="search-icon">🔍</span>
                     <input type="text" id="search-input" placeholder="Buscar por título, autor..." autocomplete="off">
+                </div>
+                <div class="filter-tabs-wrapper">
+                    <span class="filter-label">Ordenar por:</span>
+                    <div class="filter-tabs" id="filter-tabs">
+                        <button class="tab-btn active" data-sort="default">Todos</button>
+                        <button class="tab-btn" data-sort="recommended">👍 Recomendados</button>
+                        <button class="tab-btn" data-sort="downloaded">📥 Descargados</button>
+                    </div>
                 </div>
             </header>
 

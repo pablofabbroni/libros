@@ -11,6 +11,7 @@ const btnLogout = document.getElementById("btn-logout");
 
 const kpiVisits = document.getElementById("kpi-visits");
 const kpiDownloads = document.getElementById("kpi-downloads");
+const kpiTotalBooksDownloaded = document.getElementById("kpi-total-books-downloaded");
 const kpiBooks = document.getElementById("kpi-books");
 const topDownloadsTbody = document.getElementById("top-downloads-tbody");
 
@@ -112,6 +113,7 @@ async function fetchStats() {
         // 3. Render KPIs
         kpiVisits.textContent = stats.unique_visitors;
         kpiDownloads.textContent = stats.total_downloads;
+        kpiTotalBooksDownloaded.textContent = stats.total_books;
         kpiBooks.textContent = books.length;
 
         // 4. Render Top Downloads Table
