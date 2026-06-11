@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Administrador - RobotEdge</title>
+    <link rel="stylesheet" href="static/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,400&display=swap" rel="stylesheet">
+    <style>
+        /* Specific CSS overrides for the admin panel layout */
+        .admin-section {
+            padding: 40px 0;
+            z-index: 1;
+            position: relative;
+        }
+        
+        .admin-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+            margin-bottom: 40px;
+        }
+        
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-card);
+            border-radius: 12px;
+            padding: 24px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+        
+        .stat-val {
+            font-size: 48px;
+            font-weight: 800;
+            color: var(--accent-gold);
+            line-height: 1.2;
+            margin-bottom: 6px;
+        }
+        
+        .stat-lbl {
+            font-size: 13px;
+            color: var(--text-gray);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-weight: 500;
+        }
+        
+        .dashboard-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+        
+        .panel-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-card);
+            border-radius: 12px;
+            padding: 30px;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+        
+        .panel-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #ffffff;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            padding-bottom: 10px;
+        }
+        
+        /* Table styles */
+        .admin-table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+        
+        .admin-table th {
+            padding: 12px 16px;
+            font-size: 12px;
+            color: var(--text-gray);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        
+        .admin-table td {
+            padding: 14px 16px;
+            font-size: 14px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            color: var(--text-white);
+        }
+        
+        .admin-table tr:hover td {
+            background: rgba(255, 255, 255, 0.02);
+        }
+        
+        .rank-col {
+            width: 40px;
+            font-weight: bold;
+            color: var(--accent-gold);
+        }
+        
+        .count-col {
+            text-align: right;
+            font-weight: 600;
+            color: var(--accent-gold);
+        }
+        
+        /* Login card styling */
+        .login-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--bg-dark);
+            z-index: 500;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 1;
+            transition: opacity 0.3s ease;
+        }
+        
+        .login-card {
+            background: rgba(17, 24, 39, 0.6);
+            border: 1px solid var(--border-card);
+            border-radius: 16px;
+            padding: 40px;
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+        
+        .login-card h2 {
+            font-family: 'Playfair Display', serif;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        
+        .login-card p {
+            font-size: 14px;
+            color: var(--text-gray);
+            margin-bottom: 24px;
+        }
+        
+        .form-group {
+            margin-bottom: 24px;
+            text-align: left;
+        }
+        
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-gray);
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+        
+        .form-control {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 8px;
+            padding: 12px 16px;
+            color: var(--text-white);
+            font-family: inherit;
+            outline: none;
+            transition: var(--transition);
+        }
+        
+        .form-control:focus {
+            border-color: var(--accent-gold);
+            box-shadow: 0 0 10px rgba(var(--accent-gold-rgb), 0.1);
+        }
+        
+        .login-error {
+            color: #ef4444;
+            font-size: 13px;
+            margin-top: 12px;
+            display: none;
+        }
+        
+        /* Actions */
+        .actions-list {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        
+        .action-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .action-desc {
+            font-size: 13px;
+            color: var(--text-gray);
+            margin-top: 4px;
+        }
+        
+        .admin-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding-bottom: 20px;
+        }
+        
+        .admin-logo {
+            font-family: 'Playfair Display', serif;
+            font-size: 22px;
+            font-weight: 700;
+            color: #ffffff;
+        }
+        
+        .admin-logo span {
+            color: var(--accent-gold);
+        }
+        
+        @media (max-width: 900px) {
+            .admin-grid {
+                grid-template-columns: 1fr;
+            }
+            .dashboard-row {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="decor-circle circle-1"></div>
+    <div class="decor-circle circle-2"></div>
+
+    <!-- LOCK SCREEN DE INICIO DE SESIÓN -->
+    <div class="login-overlay" id="login-overlay">
+        <div class="login-card">
+            <h2>Acceso Admin</h2>
+            <p>Introduce la contraseña maestra de la Comunidad RobotEdge</p>
+            
+            <div class="form-group">
+                <label for="password-input">Contraseña Maestra</label>
+                <input type="password" id="password-input" class="form-control" placeholder="••••••••" autocomplete="current-password">
+                <div class="login-error" id="login-error-msg">Contraseña incorrecta. Inténtalo de nuevo.</div>
+            </div>
+            
+            <button class="btn btn-primary" id="btn-login" style="width: 100%;">Acceder al Panel</button>
+            <p style="margin-top: 20px; font-size: 12px;"><a href="/" style="color: var(--text-gray); text-decoration: none;">Volver al Catálogo Público</a></p>
+        </div>
+    </div>
+
+    <!-- CONTENIDO DEL DASHBOARD -->
+    <main class="container admin-section" id="admin-dashboard-content" style="display: none;">
+        <!-- Navegación Admin -->
+        <nav class="admin-nav">
+            <div class="admin-logo">RobotEdge <span>Dashboard</span></div>
+            <div>
+                <a href="/" class="btn btn-secondary" style="margin-right: 10px; text-decoration: none; display: inline-block; padding: 8px 18px; font-size: 13px;">Ver Catálogo</a>
+                <button class="btn btn-secondary" id="btn-logout" style="padding: 8px 18px; font-size: 13px;">Cerrar Sesión</button>
+            </div>
+        </nav>
+
+        <!-- KPI Grid -->
+        <section class="admin-grid">
+            <div class="stat-card">
+                <div class="stat-val" id="kpi-visits">0</div>
+                <div class="stat-lbl">Visitas de Usuarios</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-val" id="kpi-downloads">0</div>
+                <div class="stat-lbl">Descargas Totales</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-val" id="kpi-books">0</div>
+                <div class="stat-lbl">Libros en Catálogo</div>
+            </div>
+        </section>
+
+        <!-- Detalle de Estadísticas -->
+        <section class="dashboard-row">
+            <!-- Tabla de Más Descargados -->
+            <div class="panel-card">
+                <h2 class="panel-title">Libros Más Descargados (Top 10)</h2>
+                <div style="overflow-x: auto;">
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th class="rank-col">#</th>
+                                <th>Título del Libro</th>
+                                <th class="count-col">Descargas</th>
+                            </tr>
+                        </thead>
+                        <tbody id="top-downloads-tbody">
+                            <!-- Carga dinámica -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Acciones de Administración -->
+            <div class="panel-card">
+                <h2 class="panel-title">Mantenimiento</h2>
+                <div class="actions-list">
+                    <div class="action-item-block" style="border-bottom: 1px solid rgba(255,255,255,0.04); padding-bottom: 16px;">
+                        <div style="margin-bottom: 10px;">
+                            <strong style="font-size: 14px;">Escanear Biblioteca</strong>
+                            <p class="action-desc">Vuelve a escanear la carpeta de libros PDF en el VPS para cargar nuevos títulos y regenerar portadas.</p>
+                        </div>
+                        <button class="btn btn-primary" id="btn-refresh-library" style="width: 100%; font-size: 13px; padding: 8px 16px;">Sincronizar Libros</button>
+                    </div>
+                    
+                    <div class="action-item-block">
+                        <strong style="font-size: 14px;">Estado del Servidor</strong>
+                        <p class="action-desc" style="margin-top: 6px;">Servidor: FastAPI (Python 3.11 Slim)<br>Base de datos: SQLite3<br>Límite por IP: 10 descargas / 24h</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Modal de Alerta/Confirmación -->
+    <div class="modal-overlay" id="admin-modal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <span class="modal-icon" id="admin-modal-icon">✔</span>
+                <h2 id="admin-modal-title">Operación Exitosa</h2>
+            </div>
+            <div class="modal-body">
+                <p id="admin-modal-message">La biblioteca se ha sincronizado correctamente.</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" id="btn-close-admin-modal">Aceptar</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="static/admin.js"></script>
+</body>
+</html>

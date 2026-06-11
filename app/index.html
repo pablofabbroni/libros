@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Biblioteca Digital - Comunidad RobotEdge</title>
+    <!-- Relative path for local browser preview support -->
+    <link rel="stylesheet" href="static/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,400&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="decor-circle circle-1"></div>
+    <div class="decor-circle circle-2"></div>
+
+    <div class="app-layout">
+        <!-- SIDEBAR IZQUIERDO: Estilo basado en la portada del PDF -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="cover-badge">Comunidad RobotEdge</div>
+                <h1 class="sidebar-title">BIBLIOTECA DE<br>EMPRENDIMIENTO</h1>
+                <div class="cover-divider"></div>
+                <p class="sidebar-tagline">Colección de libros esenciales para emprendedores, líderes e inversores.</p>
+            </div>
+
+            <!-- Categorías del PDF original -->
+            <div class="sidebar-categories-box">
+                <h3 class="categories-box-title">Categorías Incluidas</h3>
+                <ul class="cover-categories">
+                    <li><span>■</span> Emprendimiento & Startups</li>
+                    <li><span>■</span> Finanzas & Inversión</li>
+                    <li><span>■</span> Mentalidad & Productividad</li>
+                    <li><span>■</span> Liderazgo & Ventas</li>
+                    <li><span>■</span> Marketing & Negocios</li>
+                </ul>
+                <p class="cover-community-note">Acceso libre para miembros de la comunidad</p>
+            </div>
+
+            <div class="sidebar-footer">
+                <div class="limit-info-badge" id="limit-badge">
+                    ⚡ Descargas: 10 / 10 rest.
+                </div>
+                <div class="footer-brand">ACCESO LIBRE • COMUNIDAD ROBOTEDGE</div>
+                <div class="footer-admin-link">
+                    <a href="/admin">Panel Administrativo</a>
+                </div>
+            </div>
+        </aside>
+
+        <!-- CONTENIDO PRINCIPAL: Buscador y Grilla de Libros -->
+        <main class="main-content">
+            <!-- Barra superior de búsqueda -->
+            <header class="content-header">
+                <div class="search-wrapper">
+                    <span class="search-icon">🔍</span>
+                    <input type="text" id="search-input" placeholder="Buscar por título, autor..." autocomplete="off">
+                </div>
+            </header>
+
+            <!-- Contenedor de la Rejilla -->
+            <section class="grid-section">
+                <div class="loading-spinner" id="loading-indicator">
+                    <div class="spinner"></div>
+                    <p>Cargando libros disponibles...</p>
+                </div>
+                
+                <div class="books-grid" id="books-grid" style="display: none;">
+                    <!-- Se carga dinámicamente con JS -->
+                </div>
+                
+                <div class="no-results" id="no-results" style="display: none;">
+                    <span class="no-results-icon">📚</span>
+                    <h3>No se encontraron resultados</h3>
+                    <p>Intenta con palabras clave diferentes.</p>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Barra de Selección Flotante (Abajo) -->
+    <div class="floating-selection-bar" id="selection-bar">
+        <div class="selection-container">
+            <div class="selection-info">
+                <span class="selection-count" id="selection-count">0</span>
+                <span class="selection-text" id="selection-text">libros seleccionados</span>
+            </div>
+            
+            <div class="selection-actions">
+                <button class="btn btn-secondary" id="btn-clear-selection">Desmarcar todo</button>
+                <button class="btn btn-primary" id="btn-download-selection">
+                    <span class="btn-icon">📥</span>
+                    <span class="btn-text" id="btn-download-text">Descargar PDF</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Rate Limit o Advertencia -->
+    <div class="modal-overlay" id="error-modal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <span class="modal-icon">⚠️</span>
+                <h2 id="modal-title">Límite Superado</h2>
+            </div>
+            <div class="modal-body">
+                <p id="modal-message">Has alcanzado tu límite diario de 10 descargas. Vuelve mañana para continuar.</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" id="btn-close-modal">Entendido</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Relative path for local browser preview support -->
+    <script src="static/app.js"></script>
+</body>
+</html>
