@@ -109,8 +109,9 @@ def extract_pdf_cover(pdf_path, cover_path):
         doc = fitz.open(pdf_path)
         if doc.page_count > 0:
             page = doc.load_page(0) # First page
-            # Render page to low-resolution pixmap (100 DPI is enough for card thumbnails)
-            pix = page.get_pixmap(dpi=100)
+            # Render page to web-optimized 72 DPI
+            pix = page.get_pixmap(dpi=72)
+            # Save as JPEG (fitz detects .jpg/jpeg automatically)
             pix.save(cover_path)
             doc.close()
             return True
@@ -174,7 +175,7 @@ def scan_books_folder():
         
         # Cover filename using MD5 hash of filename to prevent path character bugs
         cover_hash = get_file_md5(best_filename)
-        cover_name = f"{cover_hash}.png"
+        cover_name = f"{cover_hash}.jpg"
         cover_path = os.path.join(COVERS_DIR, cover_name)
         
         # Extract cover if not already cached
